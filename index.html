@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#15151a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Token Board" />
+  <title>Token Board</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">TCG Token Counter</p>
+        <h1>Token Board</h1>
+      </div>
+      <button id="installHintButton" class="ghost-button" type="button">使い方</button>
+    </header>
+
+    <main>
+      <section class="quick-panel" aria-label="共通カウンター">
+        <div class="counter-card life-card">
+          <span>自分ライフ</span>
+          <div class="counter-row">
+            <button class="round-button" data-life="player" data-delta="-1" type="button">−</button>
+            <strong id="playerLife">20</strong>
+            <button class="round-button" data-life="player" data-delta="1" type="button">＋</button>
+          </div>
+        </div>
+        <div class="counter-card">
+          <span>相手ライフ</span>
+          <div class="counter-row">
+            <button class="round-button" data-life="opponent" data-delta="-1" type="button">−</button>
+            <strong id="opponentLife">20</strong>
+            <button class="round-button" data-life="opponent" data-delta="1" type="button">＋</button>
+          </div>
+        </div>
+        <div class="counter-card energy-card">
+          <span>エネルギー</span>
+          <div class="counter-row">
+            <button class="round-button" data-energy-delta="-1" type="button">−</button>
+            <strong id="energyCount">0</strong>
+            <button class="round-button" data-energy-delta="1" type="button">＋</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="toolbar-panel" aria-label="操作">
+        <button id="addTokenButton" class="primary-button" type="button">＋ トークン追加</button>
+        <button id="untapAllButton" class="secondary-button" type="button">全アンタップ</button>
+        <button id="resetButton" class="danger-button" type="button">リセット</button>
+      </section>
+
+      <section class="preset-panel" aria-label="プリセット">
+        <h2>よく使うトークン</h2>
+        <div id="presetList" class="preset-list"></div>
+      </section>
+
+      <section class="token-section" aria-label="トークン一覧">
+        <div class="section-title-row">
+          <h2>盤面</h2>
+          <span id="tokenSummary" class="summary-pill">0種類 / 0体</span>
+        </div>
+        <div id="tokenList" class="token-list"></div>
+        <div id="emptyState" class="empty-state">
+          <div class="empty-icon">◇</div>
+          <p>まだトークンがありません</p>
+          <small>プリセットか「トークン追加」から作成できます。</small>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="tokenDialog" class="dialog">
+    <form id="tokenForm" method="dialog">
+      <div class="dialog-header">
+        <h2 id="dialogTitle">トークン追加</h2>
+        <button id="closeDialogButton" class="icon-button" type="button" aria-label="閉じる">×</button>
+      </div>
+
+      <input id="editingTokenId" type="hidden" />
+
+      <label>
+        名前
+        <input id="tokenName" name="tokenName" type="text" maxlength="24" placeholder="例：兵士" required />
+      </label>
+
+      <div class="form-grid">
+        <label>
+          パワー
+          <input id="tokenPower" name="tokenPower" type="number" min="0" max="99" inputmode="numeric" value="1" />
+        </label>
+        <label>
+          タフネス
+          <input id="tokenToughness" name="tokenToughness" type="number" min="0" max="99" inputmode="numeric" value="1" />
+        </label>
+        <label>
+          個数
+          <input id="tokenCount" name="tokenCount" type="number" min="1" max="999" inputmode="numeric" value="1" />
+        </label>
+      </div>
+
+      <label>
+        色
+        <select id="tokenColor" name="tokenColor">
+          <option value="white">白</option>
+          <option value="blue">青</option>
+          <option value="black">黒</option>
+          <option value="red">赤</option>
+          <option value="green">緑</option>
+          <option value="colorless">無色</option>
+          <option value="artifact">アーティファクト</option>
+          <option value="gold">多色</option>
+        </select>
+      </label>
+
+      <label>
+        メモ
+        <input id="tokenNote" name="tokenNote" type="text" maxlength="40" placeholder="例：飛行、警戒、宝物など" />
+      </label>
+
+      <div class="dialog-actions">
+        <button id="deleteTokenButton" class="danger-button hidden" type="button">削除</button>
+        <button class="secondary-button" type="button" id="cancelDialogButton">キャンセル</button>
+        <button class="primary-button" type="submit">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="helpDialog" class="dialog">
+    <div class="dialog-header">
+      <h2>iPhoneで使う方法</h2>
+      <button id="closeHelpButton" class="icon-button" type="button" aria-label="閉じる">×</button>
+    </div>
+    <div class="help-content">
+      <p>このアプリはPWAです。Safariで開いたあと、共有ボタンから「ホーム画面に追加」を選ぶと、通常のアプリのように起動できます。</p>
+      <ol>
+        <li>このページをSafariで開く</li>
+        <li>画面下の共有ボタンを押す</li>
+        <li>「ホーム画面に追加」を選ぶ</li>
+        <li>追加されたアイコンから起動する</li>
+      </ol>
+      <p>データはiPhone内に保存されます。ゲーム終了時は「リセット」を押してください。</p>
+    </div>
+  </dialog>
+
+  <template id="tokenCardTemplate">
+    <article class="token-card">
+      <div class="token-main">
+        <button class="tap-zone" type="button" aria-label="タップ状態を切り替え">
+          <span class="token-badge"></span>
+          <span class="tap-label">アンタップ</span>
+        </button>
+        <div class="token-info">
+          <div class="token-name-row">
+            <h3 class="token-name"></h3>
+            <button class="edit-button" type="button">編集</button>
+          </div>
+          <p class="token-stats"></p>
+          <p class="token-note"></p>
+        </div>
+      </div>
+      <div class="token-controls">
+        <button class="count-button minus" type="button">−</button>
+        <strong class="token-count"></strong>
+        <button class="count-button plus" type="button">＋</button>
+      </div>
+    </article>
+  </template>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
