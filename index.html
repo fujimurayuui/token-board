@@ -16,40 +16,14 @@
   <div class="app-shell">
     <header class="app-header">
       <div>
-        <p class="eyebrow">TCG Token Counter</p>
+        <p class="eyebrow">Token Manager</p>
         <h1>Token Board</h1>
+        <p class="header-note">同じ種類ごとに、アンタップ/タップ数を分けて管理します。</p>
       </div>
       <button id="installHintButton" class="ghost-button" type="button">使い方</button>
     </header>
 
     <main>
-      <section class="quick-panel" aria-label="共通カウンター">
-        <div class="counter-card life-card">
-          <span>自分ライフ</span>
-          <div class="counter-row">
-            <button class="round-button" data-life="player" data-delta="-1" type="button">−</button>
-            <strong id="playerLife">20</strong>
-            <button class="round-button" data-life="player" data-delta="1" type="button">＋</button>
-          </div>
-        </div>
-        <div class="counter-card">
-          <span>相手ライフ</span>
-          <div class="counter-row">
-            <button class="round-button" data-life="opponent" data-delta="-1" type="button">−</button>
-            <strong id="opponentLife">20</strong>
-            <button class="round-button" data-life="opponent" data-delta="1" type="button">＋</button>
-          </div>
-        </div>
-        <div class="counter-card energy-card">
-          <span>エネルギー</span>
-          <div class="counter-row">
-            <button class="round-button" data-energy-delta="-1" type="button">−</button>
-            <strong id="energyCount">0</strong>
-            <button class="round-button" data-energy-delta="1" type="button">＋</button>
-          </div>
-        </div>
-      </section>
-
       <section class="toolbar-panel" aria-label="操作">
         <button id="addTokenButton" class="primary-button" type="button">＋ トークン追加</button>
         <button id="untapAllButton" class="secondary-button" type="button">全アンタップ</button>
@@ -90,7 +64,7 @@
         <input id="tokenName" name="tokenName" type="text" maxlength="24" placeholder="例：兵士" required />
       </label>
 
-      <div class="form-grid">
+      <div class="form-grid three">
         <label>
           パワー
           <input id="tokenPower" name="tokenPower" type="number" min="0" max="99" inputmode="numeric" value="1" />
@@ -100,24 +74,37 @@
           <input id="tokenToughness" name="tokenToughness" type="number" min="0" max="99" inputmode="numeric" value="1" />
         </label>
         <label>
-          個数
+          色
+          <select id="tokenColor" name="tokenColor">
+            <option value="white">白</option>
+            <option value="blue">青</option>
+            <option value="black">黒</option>
+            <option value="red">赤</option>
+            <option value="green">緑</option>
+            <option value="colorless">無色</option>
+            <option value="artifact">アーティファクト</option>
+            <option value="gold">多色</option>
+          </select>
+        </label>
+      </div>
+
+      <div id="addCountFields" class="form-grid one">
+        <label>
+          追加する個数
           <input id="tokenCount" name="tokenCount" type="number" min="1" max="999" inputmode="numeric" value="1" />
         </label>
       </div>
 
-      <label>
-        色
-        <select id="tokenColor" name="tokenColor">
-          <option value="white">白</option>
-          <option value="blue">青</option>
-          <option value="black">黒</option>
-          <option value="red">赤</option>
-          <option value="green">緑</option>
-          <option value="colorless">無色</option>
-          <option value="artifact">アーティファクト</option>
-          <option value="gold">多色</option>
-        </select>
-      </label>
+      <div id="editCountFields" class="form-grid two hidden">
+        <label>
+          アンタップ数
+          <input id="tokenUntapped" name="tokenUntapped" type="number" min="0" max="999" inputmode="numeric" value="1" />
+        </label>
+        <label>
+          タップ数
+          <input id="tokenTapped" name="tokenTapped" type="number" min="0" max="999" inputmode="numeric" value="0" />
+        </label>
+      </div>
 
       <label>
         メモ
@@ -138,7 +125,8 @@
       <button id="closeHelpButton" class="icon-button" type="button" aria-label="閉じる">×</button>
     </div>
     <div class="help-content">
-      <p>このアプリはPWAです。Safariで開いたあと、共有ボタンから「ホーム画面に追加」を選ぶと、通常のアプリのように起動できます。</p>
+      <p>Safariで開いたあと、共有ボタンから「ホーム画面に追加」を選ぶと、通常のアプリのように起動できます。</p>
+      <p>各トークンは「アンタップ」と「タップ」の2枠で表示されます。「1体タップ」「1体戻す」で、同じ種類のトークン内の状態を移動できます。</p>
       <ol>
         <li>このページをSafariで開く</li>
         <li>画面下の共有ボタンを押す</li>
@@ -151,24 +139,56 @@
 
   <template id="tokenCardTemplate">
     <article class="token-card">
-      <div class="token-main">
-        <button class="tap-zone" type="button" aria-label="タップ状態を切り替え">
-          <span class="token-badge"></span>
-          <span class="tap-label">アンタップ</span>
-        </button>
-        <div class="token-info">
+      <div class="token-top">
+        <div class="token-title-block">
           <div class="token-name-row">
+            <span class="token-badge"></span>
             <h3 class="token-name"></h3>
-            <button class="edit-button" type="button">編集</button>
           </div>
           <p class="token-stats"></p>
           <p class="token-note"></p>
         </div>
+        <div class="token-total">
+          <span>合計</span>
+          <strong class="total-count">0</strong>
+        </div>
       </div>
-      <div class="token-controls">
-        <button class="count-button minus" type="button">−</button>
-        <strong class="token-count"></strong>
-        <button class="count-button plus" type="button">＋</button>
+
+      <div class="status-grid">
+        <section class="status-box untapped-box" aria-label="アンタップ状態">
+          <div class="status-label-row">
+            <span class="status-icon upright-icon"></span>
+            <span>アンタップ</span>
+          </div>
+          <strong class="untapped-count">0</strong>
+          <div class="status-buttons">
+            <button class="small-count-button untapped-minus" type="button">−</button>
+            <button class="small-count-button untapped-plus" type="button">＋</button>
+          </div>
+        </section>
+
+        <section class="status-box tapped-box" aria-label="タップ状態">
+          <div class="status-label-row">
+            <span class="status-icon tapped-icon"></span>
+            <span>タップ</span>
+          </div>
+          <strong class="tapped-count">0</strong>
+          <div class="status-buttons">
+            <button class="small-count-button tapped-minus" type="button">−</button>
+            <button class="small-count-button tapped-plus" type="button">＋</button>
+          </div>
+        </section>
+      </div>
+
+      <div class="move-row">
+        <button class="move-button tap-one" type="button">1体タップ →</button>
+        <button class="move-button untap-one" type="button">← 1体戻す</button>
+      </div>
+
+      <div class="card-actions">
+        <button class="quick-button tap-all" type="button">全タップ</button>
+        <button class="quick-button untap-card" type="button">全アンタップ</button>
+        <button class="edit-button" type="button">編集</button>
       </div>
     </article>
   </template>

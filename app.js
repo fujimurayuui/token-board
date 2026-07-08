@@ -1,16 +1,5 @@
-const STORAGE_KEY = 'token-board-state-v1';
-
-const presets = [
-  { name: '兵士', power: 1, toughness: 1, color: 'white', note: '' },
-  { name: 'スピリット', power: 1, toughness: 1, color: 'white', note: '飛行' },
-  { name: 'ゾンビ', power: 2, toughness: 2, color: 'black', note: '' },
-  { name: 'ゴブリン', power: 1, toughness: 1, color: 'red', note: '' },
-  { name: '苗木', power: 1, toughness: 1, color: 'green', note: '' },
-  { name: '宝物', power: 0, toughness: 0, color: 'artifact', note: '生け贄：好きな色1点' },
-  { name: '食物', power: 0, toughness: 0, color: 'artifact', note: '2,生け贄：3点回復' },
-  { name: '手掛かり', power: 0, toughness: 0, color: 'artifact', note: '2,生け贄：1枚引く' },
-  { name: '構築物', power: 0, toughness: 0, color: 'artifact', note: 'サイズ可変' }
-];
+const STORAGE_KEY = 'token-board-state-v2';
+const OLD_STORAGE_KEY = 'token-board-state-v1';
 
 const colorLabels = {
   white: '白',
@@ -23,16 +12,22 @@ const colorLabels = {
   gold: '多色'
 };
 
-let state = loadState();
+const presets = [
+  { name: '兵士', power: 1, toughness: 1, color: 'white', note: '' },
+  { name: 'スピリット', power: 1, toughness: 1, color: 'white', note: '飛行' },
+  { name: 'ゾンビ', power: 2, toughness: 2, color: 'black', note: '' },
+  { name: 'ゴブリン', power: 1, toughness: 1, color: 'red', note: '' },
+  { name: '宝物', power: 0, toughness: 0, color: 'artifact', note: '生け贄：好きな色1点' },
+  { name: '食物', power: 0, toughness: 0, color: 'artifact', note: '' },
+  { name: '手掛かり', power: 0, toughness: 0, color: 'artifact', note: '' },
+  { name: '構築物', power: 0, toughness: 0, color: 'artifact', note: '' }
+];
 
 const elements = {
   presetList: document.querySelector('#presetList'),
   tokenList: document.querySelector('#tokenList'),
   emptyState: document.querySelector('#emptyState'),
   tokenSummary: document.querySelector('#tokenSummary'),
-  playerLife: document.querySelector('#playerLife'),
-  opponentLife: document.querySelector('#opponentLife'),
-  energyCount: document.querySelector('#energyCount'),
   addTokenButton: document.querySelector('#addTokenButton'),
   resetButton: document.querySelector('#resetButton'),
   untapAllButton: document.querySelector('#untapAllButton'),
@@ -44,8 +39,12 @@ const elements = {
   tokenPower: document.querySelector('#tokenPower'),
   tokenToughness: document.querySelector('#tokenToughness'),
   tokenCount: document.querySelector('#tokenCount'),
+  tokenUntapped: document.querySelector('#tokenUntapped'),
+  tokenTapped: document.querySelector('#tokenTapped'),
   tokenColor: document.querySelector('#tokenColor'),
   tokenNote: document.querySelector('#tokenNote'),
+  addCountFields: document.querySelector('#addCountFields'),
+  editCountFields: document.querySelector('#editCountFields'),
   deleteTokenButton: document.querySelector('#deleteTokenButton'),
   closeDialogButton: document.querySelector('#closeDialogButton'),
   cancelDialogButton: document.querySelector('#cancelDialogButton'),
@@ -55,32 +54,63 @@ const elements = {
   tokenCardTemplate: document.querySelector('#tokenCardTemplate')
 };
 
+let state = loadState();
+
 function createDefaultState() {
-  return {
-    tokens: [],
-    playerLife: 20,
-    opponentLife: 20,
-    energy: 0
-  };
+  return { tokens: [] };
 }
 
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (!saved || !Array.isArray(saved.tokens)) return createDefaultState();
-    return {
-      tokens: saved.tokens,
-      playerLife: Number.isFinite(saved.playerLife) ? saved.playerLife : 20,
-      opponentLife: Number.isFinite(saved.opponentLife) ? saved.opponentLife : 20,
-      energy: Number.isFinite(saved.energy) ? saved.energy : 0
-    };
+    if (saved && Array.isArray(saved.tokens)) {
+      return { tokens: saved.tokens.map(normalizeToken).filter(Boolean) };
+    }
+
+    const oldSaved = JSON.parse(localStorage.getItem(OLD_STORAGE_KEY));
+    if (oldSaved && Array.isArray(oldSaved.tokens)) {
+      return { tokens: oldSaved.tokens.map(migrateOldToken).filter(Boolean) };
+    }
+
+    return createDefaultState();
   } catch {
     return createDefaultState();
   }
 }
 
+function migrateOldToken(token) {
+  if (!token) return null;
+  const count = clampNumber(token.count, 0, 999);
+  return normalizeToken({
+    ...token,
+    untapped: token.tapped ? 0 : count,
+    tapped: token.tapped ? count : 0
+  });
+}
+
+function normalizeToken(token) {
+  if (!token || !token.name) return null;
+  const untapped = clampNumber(token.untapped ?? 0, 0, 999);
+  const tapped = clampNumber(token.tapped ?? 0, 0, 999);
+  return {
+    id: token.id || createId(),
+    name: String(token.name).trim() || 'トークン',
+    power: clampNumber(token.power, 0, 99),
+    toughness: clampNumber(token.toughness, 0, 99),
+    untapped,
+    tapped,
+    color: colorLabels[token.color] ? token.color : 'colorless',
+    note: String(token.note || '').trim()
+  };
+}
+
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function persistAndRender() {
+  saveState();
+  render();
 }
 
 function clampNumber(value, min, max) {
@@ -89,32 +119,42 @@ function clampNumber(value, min, max) {
   return Math.min(max, Math.max(min, number));
 }
 
-function createToken({ name, power, toughness, count = 1, color = 'colorless', note = '' }) {
-  return {
-    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
-    name: name.trim(),
-    power: clampNumber(power, 0, 99),
-    toughness: clampNumber(toughness, 0, 99),
-    count: clampNumber(count, 1, 999),
+function createId() {
+  if (globalThis.crypto && typeof globalThis.crypto.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  return String(Date.now() + Math.random());
+}
+
+function sameKind(a, b) {
+  return a.name === b.name &&
+    a.power === b.power &&
+    a.toughness === b.toughness &&
+    a.color === b.color &&
+    a.note === b.note;
+}
+
+function createToken({ name, power, toughness, count = 1, untapped, tapped = 0, color = 'colorless', note = '' }) {
+  const initialUntapped = untapped === undefined ? count : untapped;
+  return normalizeToken({
+    id: createId(),
+    name: String(name || 'トークン').trim(),
+    power,
+    toughness,
+    untapped: clampNumber(initialUntapped, 0, 999),
+    tapped: clampNumber(tapped, 0, 999),
     color,
-    note: note.trim(),
-    tapped: false
-  };
+    note: String(note || '').trim()
+  });
 }
 
 function addToken(tokenInput) {
   const token = createToken(tokenInput);
-  const sameToken = state.tokens.find((item) =>
-    item.name === token.name &&
-    item.power === token.power &&
-    item.toughness === token.toughness &&
-    item.color === token.color &&
-    item.note === token.note &&
-    item.tapped === false
-  );
+  const sameToken = state.tokens.find((item) => sameKind(item, token));
 
   if (sameToken) {
-    sameToken.count = clampNumber(sameToken.count + token.count, 1, 999);
+    sameToken.untapped = clampNumber(sameToken.untapped + token.untapped, 0, 999);
+    sameToken.tapped = clampNumber(sameToken.tapped + token.tapped, 0, 999);
   } else {
     state.tokens.unshift(token);
   }
@@ -125,7 +165,7 @@ function addToken(tokenInput) {
 function updateToken(id, updates) {
   const token = state.tokens.find((item) => item.id === id);
   if (!token) return;
-  Object.assign(token, updates);
+  Object.assign(token, normalizeToken({ ...token, ...updates, id }));
   persistAndRender();
 }
 
@@ -134,21 +174,44 @@ function removeToken(id) {
   persistAndRender();
 }
 
-function changeTokenCount(id, delta) {
+function totalOf(token) {
+  return token.untapped + token.tapped;
+}
+
+function removeEmptyTokens() {
+  state.tokens = state.tokens.filter((token) => totalOf(token) > 0);
+}
+
+function changeStatusCount(id, status, delta) {
   const token = state.tokens.find((item) => item.id === id);
   if (!token) return;
-  token.count += delta;
-  if (token.count <= 0) {
-    removeToken(id);
-    return;
-  }
-  token.count = clampNumber(token.count, 1, 999);
+  token[status] = clampNumber(token[status] + delta, 0, 999);
+  removeEmptyTokens();
   persistAndRender();
 }
 
-function persistAndRender() {
-  saveState();
-  render();
+function moveOne(id, from, to) {
+  const token = state.tokens.find((item) => item.id === id);
+  if (!token || token[from] <= 0) return;
+  token[from] -= 1;
+  token[to] = clampNumber(token[to] + 1, 0, 999);
+  persistAndRender();
+}
+
+function tapAll(id) {
+  const token = state.tokens.find((item) => item.id === id);
+  if (!token || token.untapped <= 0) return;
+  token.tapped = clampNumber(token.tapped + token.untapped, 0, 999);
+  token.untapped = 0;
+  persistAndRender();
+}
+
+function untapOneKind(id) {
+  const token = state.tokens.find((item) => item.id === id);
+  if (!token || token.tapped <= 0) return;
+  token.untapped = clampNumber(token.untapped + token.tapped, 0, 999);
+  token.tapped = 0;
+  persistAndRender();
 }
 
 function renderPresets() {
@@ -164,34 +227,37 @@ function renderPresets() {
 }
 
 function render() {
-  elements.playerLife.textContent = state.playerLife;
-  elements.opponentLife.textContent = state.opponentLife;
-  elements.energyCount.textContent = state.energy;
+  removeEmptyTokens();
 
-  const totalCount = state.tokens.reduce((sum, token) => sum + token.count, 0);
-  elements.tokenSummary.textContent = `${state.tokens.length}種類 / ${totalCount}体`;
+  const totalCount = state.tokens.reduce((sum, token) => sum + totalOf(token), 0);
+  const tappedCount = state.tokens.reduce((sum, token) => sum + token.tapped, 0);
+  const untappedCount = state.tokens.reduce((sum, token) => sum + token.untapped, 0);
+  elements.tokenSummary.textContent = `${state.tokens.length}種類 / ${totalCount}体（起:${untappedCount} 横:${tappedCount}）`;
   elements.emptyState.classList.toggle('hidden', state.tokens.length > 0);
   elements.tokenList.innerHTML = '';
 
   for (const token of state.tokens) {
     const card = elements.tokenCardTemplate.content.firstElementChild.cloneNode(true);
-    card.classList.toggle('is-tapped', token.tapped);
+    card.classList.toggle('all-tapped', token.untapped === 0 && token.tapped > 0);
 
     const badge = card.querySelector('.token-badge');
     badge.className = `token-badge color-${token.color}`;
 
-    card.querySelector('.tap-label').textContent = token.tapped ? 'タップ中' : 'アンタップ';
     card.querySelector('.token-name').textContent = token.name;
     card.querySelector('.token-stats').textContent = `${token.power}/${token.toughness}・${colorLabels[token.color] ?? '無色'}`;
     card.querySelector('.token-note').textContent = token.note || 'メモなし';
-    card.querySelector('.token-count').textContent = token.count;
+    card.querySelector('.total-count').textContent = totalOf(token);
+    card.querySelector('.untapped-count').textContent = token.untapped;
+    card.querySelector('.tapped-count').textContent = token.tapped;
 
-    card.querySelector('.tap-zone').addEventListener('click', () => {
-      updateToken(token.id, { tapped: !token.tapped });
-    });
-
-    card.querySelector('.minus').addEventListener('click', () => changeTokenCount(token.id, -1));
-    card.querySelector('.plus').addEventListener('click', () => changeTokenCount(token.id, 1));
+    card.querySelector('.untapped-minus').addEventListener('click', () => changeStatusCount(token.id, 'untapped', -1));
+    card.querySelector('.untapped-plus').addEventListener('click', () => changeStatusCount(token.id, 'untapped', 1));
+    card.querySelector('.tapped-minus').addEventListener('click', () => changeStatusCount(token.id, 'tapped', -1));
+    card.querySelector('.tapped-plus').addEventListener('click', () => changeStatusCount(token.id, 'tapped', 1));
+    card.querySelector('.tap-one').addEventListener('click', () => moveOne(token.id, 'untapped', 'tapped'));
+    card.querySelector('.untap-one').addEventListener('click', () => moveOne(token.id, 'tapped', 'untapped'));
+    card.querySelector('.tap-all').addEventListener('click', () => tapAll(token.id));
+    card.querySelector('.untap-card').addEventListener('click', () => untapOneKind(token.id));
     card.querySelector('.edit-button').addEventListener('click', () => openEditDialog(token));
 
     elements.tokenList.appendChild(card);
@@ -205,8 +271,12 @@ function openAddDialog() {
   elements.tokenPower.value = 1;
   elements.tokenToughness.value = 1;
   elements.tokenCount.value = 1;
+  elements.tokenUntapped.value = 1;
+  elements.tokenTapped.value = 0;
   elements.tokenColor.value = 'white';
   elements.tokenNote.value = '';
+  elements.addCountFields.classList.remove('hidden');
+  elements.editCountFields.classList.add('hidden');
   elements.deleteTokenButton.classList.add('hidden');
   showDialog(elements.tokenDialog);
   elements.tokenName.focus();
@@ -218,9 +288,13 @@ function openEditDialog(token) {
   elements.tokenName.value = token.name;
   elements.tokenPower.value = token.power;
   elements.tokenToughness.value = token.toughness;
-  elements.tokenCount.value = token.count;
+  elements.tokenCount.value = Math.max(1, totalOf(token));
+  elements.tokenUntapped.value = token.untapped;
+  elements.tokenTapped.value = token.tapped;
   elements.tokenColor.value = token.color;
   elements.tokenNote.value = token.note;
+  elements.addCountFields.classList.add('hidden');
+  elements.editCountFields.classList.remove('hidden');
   elements.deleteTokenButton.classList.remove('hidden');
   showDialog(elements.tokenDialog);
 }
@@ -254,20 +328,28 @@ function bindEvents() {
   elements.tokenForm.addEventListener('submit', (event) => {
     event.preventDefault();
     const id = elements.editingTokenId.value;
-    const payload = {
-      name: elements.tokenName.value.trim() || 'トークン',
-      power: clampNumber(elements.tokenPower.value, 0, 99),
-      toughness: clampNumber(elements.tokenToughness.value, 0, 99),
-      count: clampNumber(elements.tokenCount.value, 1, 999),
-      color: elements.tokenColor.value,
-      note: elements.tokenNote.value.trim()
-    };
 
     if (id) {
-      updateToken(id, payload);
+      updateToken(id, {
+        name: elements.tokenName.value.trim() || 'トークン',
+        power: clampNumber(elements.tokenPower.value, 0, 99),
+        toughness: clampNumber(elements.tokenToughness.value, 0, 99),
+        untapped: clampNumber(elements.tokenUntapped.value, 0, 999),
+        tapped: clampNumber(elements.tokenTapped.value, 0, 999),
+        color: elements.tokenColor.value,
+        note: elements.tokenNote.value.trim()
+      });
     } else {
-      addToken(payload);
+      addToken({
+        name: elements.tokenName.value.trim() || 'トークン',
+        power: clampNumber(elements.tokenPower.value, 0, 99),
+        toughness: clampNumber(elements.tokenToughness.value, 0, 99),
+        count: clampNumber(elements.tokenCount.value, 1, 999),
+        color: elements.tokenColor.value,
+        note: elements.tokenNote.value.trim()
+      });
     }
+
     closeDialog(elements.tokenDialog);
   });
 
@@ -281,35 +363,17 @@ function bindEvents() {
   });
 
   elements.resetButton.addEventListener('click', () => {
-    if (!confirm('盤面・ライフ・エネルギーを初期化しますか？')) return;
+    if (!confirm('盤面のトークンをすべて削除しますか？')) return;
     state = createDefaultState();
     persistAndRender();
   });
 
   elements.untapAllButton.addEventListener('click', () => {
-    state.tokens.forEach((token) => { token.tapped = false; });
+    state.tokens.forEach((token) => {
+      token.untapped = clampNumber(token.untapped + token.tapped, 0, 999);
+      token.tapped = 0;
+    });
     persistAndRender();
-  });
-
-  document.querySelectorAll('[data-life]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const target = button.dataset.life;
-      const delta = Number.parseInt(button.dataset.delta, 10);
-      if (target === 'player') {
-        state.playerLife = clampNumber(state.playerLife + delta, -99, 999);
-      } else {
-        state.opponentLife = clampNumber(state.opponentLife + delta, -99, 999);
-      }
-      persistAndRender();
-    });
-  });
-
-  document.querySelectorAll('[data-energy-delta]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const delta = Number.parseInt(button.dataset.energyDelta, 10);
-      state.energy = clampNumber(state.energy + delta, 0, 999);
-      persistAndRender();
-    });
   });
 
   elements.installHintButton.addEventListener('click', () => showDialog(elements.helpDialog));

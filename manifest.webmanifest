@@ -1,7 +1,7 @@
 {
   "name": "Token Board",
   "short_name": "Token Board",
-  "description": "TCG向けのシンプルなトークン・ライフ・エネルギーカウンター",
+  "description": "TCG向けのシンプルなトークン管理アプリ。トークンのタップ/アンタップ数を種類ごとに管理できます。",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
