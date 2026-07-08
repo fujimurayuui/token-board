@@ -250,10 +250,14 @@ function render() {
     card.querySelector('.untapped-count').textContent = token.untapped;
     card.querySelector('.tapped-count').textContent = token.tapped;
 
+    card.querySelector('.untapped-minus-ten').addEventListener('click', () => changeStatusCount(token.id, 'untapped', -10));
     card.querySelector('.untapped-minus').addEventListener('click', () => changeStatusCount(token.id, 'untapped', -1));
     card.querySelector('.untapped-plus').addEventListener('click', () => changeStatusCount(token.id, 'untapped', 1));
+    card.querySelector('.untapped-plus-ten').addEventListener('click', () => changeStatusCount(token.id, 'untapped', 10));
+    card.querySelector('.tapped-minus-ten').addEventListener('click', () => changeStatusCount(token.id, 'tapped', -10));
     card.querySelector('.tapped-minus').addEventListener('click', () => changeStatusCount(token.id, 'tapped', -1));
     card.querySelector('.tapped-plus').addEventListener('click', () => changeStatusCount(token.id, 'tapped', 1));
+    card.querySelector('.tapped-plus-ten').addEventListener('click', () => changeStatusCount(token.id, 'tapped', 10));
     card.querySelector('.tap-one').addEventListener('click', () => moveOne(token.id, 'untapped', 'tapped'));
     card.querySelector('.untap-one').addEventListener('click', () => moveOne(token.id, 'tapped', 'untapped'));
     card.querySelector('.tap-all').addEventListener('click', () => tapAll(token.id));
@@ -378,6 +382,16 @@ function bindEvents() {
 
   elements.installHintButton.addEventListener('click', () => showDialog(elements.helpDialog));
   elements.closeHelpButton.addEventListener('click', () => closeDialog(elements.helpDialog));
+
+  document.addEventListener('dblclick', (event) => {
+    if (event.target.closest('button')) {
+      event.preventDefault();
+    }
+  }, { passive: false });
+
+  document.addEventListener('gesturestart', (event) => {
+    event.preventDefault();
+  }, { passive: false });
 }
 
 function registerServiceWorker() {

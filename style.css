@@ -27,6 +27,7 @@
 html,
 body {
   margin: 0;
+  touch-action: manipulation;
   min-height: 100%;
   background:
     radial-gradient(circle at top left, rgba(122, 215, 255, 0.18), transparent 32rem),
@@ -43,6 +44,17 @@ button,
 input,
 select {
   font: inherit;
+}
+
+button,
+.preset-chip,
+.small-count-button,
+.move-button,
+.quick-button {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 button {
@@ -388,6 +400,14 @@ h2 {
   margin-top: 12px;
 }
 
+.status-buttons.four-buttons {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.mini-count-button {
+  font-size: 0.95rem;
+}
+
 .small-count-button {
   min-height: 42px;
   border-radius: 14px;
@@ -572,6 +592,19 @@ select:focus {
   .form-grid.two,
   .form-grid.three {
     grid-template-columns: 1fr;
+  }
+
+  .status-buttons.four-buttons {
+    gap: 6px;
+  }
+
+  .small-count-button {
+    min-height: 44px;
+    font-size: 1.08rem;
+  }
+
+  .mini-count-button {
+    font-size: 0.86rem;
   }
 
   .card-actions {
