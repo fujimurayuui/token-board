@@ -48,6 +48,7 @@ select {
 
 button,
 .preset-chip,
+.preset-edit-button,
 .small-count-button,
 .move-button,
 .quick-button {
@@ -134,7 +135,8 @@ h2 {
 .ghost-button,
 .edit-button,
 .quick-button,
-.move-button {
+.move-button,
+.preset-edit-button {
   min-height: 44px;
   padding: 10px 14px;
   border-radius: 999px;
@@ -173,20 +175,59 @@ h2 {
   margin-bottom: 12px;
 }
 
+.preset-title-row {
+  margin-bottom: 10px;
+}
+
+.compact-button {
+  min-height: 36px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+}
+
 .preset-list {
+  display: grid;
+  gap: 14px;
+}
+
+.preset-group {
+  display: grid;
+  gap: 7px;
+}
+
+.preset-group-title {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.preset-group-items {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 12px 0 2px;
+  padding: 0 0 3px;
   scrollbar-width: none;
 }
 
-.preset-list::-webkit-scrollbar {
+.preset-group-items::-webkit-scrollbar {
   display: none;
 }
 
-.preset-chip {
+.preset-item {
   flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  min-width: 124px;
+}
+
+.preset-item.custom-preset {
+  min-width: 158px;
+  grid-template-columns: 1fr auto;
+}
+
+.preset-chip {
+  width: 100%;
   min-width: 112px;
   padding: 12px 14px;
   border-radius: 18px;
@@ -196,14 +237,43 @@ h2 {
   text-align: left;
 }
 
-.preset-chip strong,
-.preset-chip small {
+.preset-chip-main strong,
+.preset-chip-main small,
+.preset-chip em {
   display: block;
 }
 
-.preset-chip small {
+.preset-chip-main small {
   margin-top: 4px;
   color: var(--muted);
+}
+
+.preset-chip em {
+  margin-top: 6px;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-style: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preset-edit-button {
+  min-height: 100%;
+  padding: 8px 10px;
+  border-radius: 16px;
+  color: var(--text);
+  background: rgba(255,255,255,0.07);
+  border: 1px solid var(--line);
+  font-size: 0.78rem;
+}
+
+.preset-empty-note,
+.form-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
 }
 
 .section-title-row {
@@ -585,6 +655,14 @@ select:focus {
 
   .toolbar-panel {
     grid-template-columns: 1fr;
+  }
+
+  .preset-title-row {
+    align-items: flex-start;
+  }
+
+  .preset-title-row .compact-button {
+    flex: 0 0 auto;
   }
 
   .status-grid,

@@ -1,5 +1,5 @@
-const STORAGE_KEY = 'token-board-state-v2';
-const OLD_STORAGE_KEY = 'token-board-state-v1';
+const STORAGE_KEY = 'token-board-state-v4';
+const OLD_STORAGE_KEYS = ['token-board-state-v2', 'token-board-state-v1'];
 
 const colorLabels = {
   white: '白',
@@ -12,7 +12,7 @@ const colorLabels = {
   gold: '多色'
 };
 
-const presets = [
+const defaultPresets = [
   { name: '兵士', power: 1, toughness: 1, color: 'white', note: '' },
   { name: 'スピリット', power: 1, toughness: 1, color: 'white', note: '飛行' },
   { name: 'ゾンビ', power: 2, toughness: 2, color: 'black', note: '' },
@@ -29,6 +29,7 @@ const elements = {
   emptyState: document.querySelector('#emptyState'),
   tokenSummary: document.querySelector('#tokenSummary'),
   addTokenButton: document.querySelector('#addTokenButton'),
+  addPresetButton: document.querySelector('#addPresetButton'),
   resetButton: document.querySelector('#resetButton'),
   untapAllButton: document.querySelector('#untapAllButton'),
   tokenDialog: document.querySelector('#tokenDialog'),
@@ -48,6 +49,18 @@ const elements = {
   deleteTokenButton: document.querySelector('#deleteTokenButton'),
   closeDialogButton: document.querySelector('#closeDialogButton'),
   cancelDialogButton: document.querySelector('#cancelDialogButton'),
+  presetDialog: document.querySelector('#presetDialog'),
+  presetForm: document.querySelector('#presetForm'),
+  presetDialogTitle: document.querySelector('#presetDialogTitle'),
+  editingPresetId: document.querySelector('#editingPresetId'),
+  presetName: document.querySelector('#presetName'),
+  presetPower: document.querySelector('#presetPower'),
+  presetToughness: document.querySelector('#presetToughness'),
+  presetColor: document.querySelector('#presetColor'),
+  presetNote: document.querySelector('#presetNote'),
+  deletePresetButton: document.querySelector('#deletePresetButton'),
+  closePresetDialogButton: document.querySelector('#closePresetDialogButton'),
+  cancelPresetDialogButton: document.querySelector('#cancelPresetDialogButton'),
   installHintButton: document.querySelector('#installHintButton'),
   helpDialog: document.querySelector('#helpDialog'),
   closeHelpButton: document.querySelector('#closeHelpButton'),
@@ -57,25 +70,39 @@ const elements = {
 let state = loadState();
 
 function createDefaultState() {
-  return { tokens: [] };
+  return {
+    tokens: [],
+    customPresets: []
+  };
 }
 
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && Array.isArray(saved.tokens)) {
-      return { tokens: saved.tokens.map(normalizeToken).filter(Boolean) };
-    }
+    const normalizedSaved = normalizeState(saved);
+    if (normalizedSaved) return normalizedSaved;
 
-    const oldSaved = JSON.parse(localStorage.getItem(OLD_STORAGE_KEY));
-    if (oldSaved && Array.isArray(oldSaved.tokens)) {
-      return { tokens: oldSaved.tokens.map(migrateOldToken).filter(Boolean) };
+    for (const oldKey of OLD_STORAGE_KEYS) {
+      const oldSaved = JSON.parse(localStorage.getItem(oldKey));
+      const normalizedOld = normalizeState(oldSaved, { migrateOldTokens: oldKey.endsWith('v1') });
+      if (normalizedOld) return normalizedOld;
     }
 
     return createDefaultState();
   } catch {
     return createDefaultState();
   }
+}
+
+function normalizeState(input, options = {}) {
+  if (!input || !Array.isArray(input.tokens)) return null;
+  const tokens = input.tokens
+    .map(options.migrateOldTokens ? migrateOldToken : normalizeToken)
+    .filter(Boolean);
+  const customPresets = Array.isArray(input.customPresets)
+    ? input.customPresets.map(normalizePreset).filter(Boolean)
+    : [];
+  return { tokens, customPresets };
 }
 
 function migrateOldToken(token) {
@@ -101,6 +128,18 @@ function normalizeToken(token) {
     tapped,
     color: colorLabels[token.color] ? token.color : 'colorless',
     note: String(token.note || '').trim()
+  };
+}
+
+function normalizePreset(preset) {
+  if (!preset || !preset.name) return null;
+  return {
+    id: preset.id || createId(),
+    name: String(preset.name).trim() || 'トークン',
+    power: clampNumber(preset.power, 0, 99),
+    toughness: clampNumber(preset.toughness, 0, 99),
+    color: colorLabels[preset.color] ? preset.color : 'colorless',
+    note: String(preset.note || '').trim()
   };
 }
 
@@ -174,6 +213,25 @@ function removeToken(id) {
   persistAndRender();
 }
 
+function addCustomPreset(input) {
+  const preset = normalizePreset({ ...input, id: createId() });
+  if (!preset) return;
+  state.customPresets.unshift(preset);
+  persistAndRender();
+}
+
+function updateCustomPreset(id, updates) {
+  const preset = state.customPresets.find((item) => item.id === id);
+  if (!preset) return;
+  Object.assign(preset, normalizePreset({ ...preset, ...updates, id }));
+  persistAndRender();
+}
+
+function removeCustomPreset(id) {
+  state.customPresets = state.customPresets.filter((item) => item.id !== id);
+  persistAndRender();
+}
+
 function totalOf(token) {
   return token.untapped + token.tapped;
 }
@@ -216,18 +274,63 @@ function untapOneKind(id) {
 
 function renderPresets() {
   elements.presetList.innerHTML = '';
-  for (const preset of presets) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'preset-chip';
-    button.innerHTML = `<strong>${escapeHtml(preset.name)}</strong><small>${preset.power}/${preset.toughness}・${colorLabels[preset.color]}</small>`;
-    button.addEventListener('click', () => addToken({ ...preset, count: 1 }));
-    elements.presetList.appendChild(button);
+  renderPresetGroup('標準プリセット', defaultPresets, false);
+  renderPresetGroup('作成したプリセット', state.customPresets, true);
+}
+
+function renderPresetGroup(title, presetItems, isCustom) {
+  const group = document.createElement('div');
+  group.className = 'preset-group';
+
+  const heading = document.createElement('p');
+  heading.className = 'preset-group-title';
+  heading.textContent = title;
+  group.appendChild(heading);
+
+  const itemRow = document.createElement('div');
+  itemRow.className = 'preset-group-items';
+
+  if (presetItems.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'preset-empty-note';
+    empty.textContent = 'まだありません。「＋ プリセット作成」から追加できます。';
+    itemRow.appendChild(empty);
+  } else {
+    for (const preset of presetItems) {
+      itemRow.appendChild(createPresetElement(preset, isCustom));
+    }
   }
+
+  group.appendChild(itemRow);
+  elements.presetList.appendChild(group);
+}
+
+function createPresetElement(preset, isCustom) {
+  const item = document.createElement('div');
+  item.className = `preset-item${isCustom ? ' custom-preset' : ''}`;
+
+  const addButton = document.createElement('button');
+  addButton.type = 'button';
+  addButton.className = 'preset-chip';
+  addButton.innerHTML = `<span class="preset-chip-main"><strong>${escapeHtml(preset.name)}</strong><small>${preset.power}/${preset.toughness}・${colorLabels[preset.color]}</small></span>${preset.note ? `<em>${escapeHtml(preset.note)}</em>` : ''}`;
+  addButton.addEventListener('click', () => addToken({ ...preset, count: 1 }));
+  item.appendChild(addButton);
+
+  if (isCustom) {
+    const editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'preset-edit-button';
+    editButton.textContent = '編集';
+    editButton.addEventListener('click', () => openPresetDialog(preset));
+    item.appendChild(editButton);
+  }
+
+  return item;
 }
 
 function render() {
   removeEmptyTokens();
+  renderPresets();
 
   const totalCount = state.tokens.reduce((sum, token) => sum + totalOf(token), 0);
   const tappedCount = state.tokens.reduce((sum, token) => sum + token.tapped, 0);
@@ -303,6 +406,20 @@ function openEditDialog(token) {
   showDialog(elements.tokenDialog);
 }
 
+function openPresetDialog(preset) {
+  const isEdit = Boolean(preset);
+  elements.presetDialogTitle.textContent = isEdit ? 'プリセット編集' : 'プリセット作成';
+  elements.editingPresetId.value = preset?.id || '';
+  elements.presetName.value = preset?.name || '兵士';
+  elements.presetPower.value = preset?.power ?? 1;
+  elements.presetToughness.value = preset?.toughness ?? 1;
+  elements.presetColor.value = preset?.color || 'white';
+  elements.presetNote.value = preset?.note || '';
+  elements.deletePresetButton.classList.toggle('hidden', !isEdit);
+  showDialog(elements.presetDialog);
+  elements.presetName.focus();
+}
+
 function closeDialog(dialog) {
   dialog.close();
 }
@@ -326,8 +443,11 @@ function escapeHtml(value) {
 
 function bindEvents() {
   elements.addTokenButton.addEventListener('click', openAddDialog);
+  elements.addPresetButton.addEventListener('click', () => openPresetDialog());
   elements.closeDialogButton.addEventListener('click', () => closeDialog(elements.tokenDialog));
   elements.cancelDialogButton.addEventListener('click', () => closeDialog(elements.tokenDialog));
+  elements.closePresetDialogButton.addEventListener('click', () => closeDialog(elements.presetDialog));
+  elements.cancelPresetDialogButton.addEventListener('click', () => closeDialog(elements.presetDialog));
 
   elements.tokenForm.addEventListener('submit', (event) => {
     event.preventDefault();
@@ -357,6 +477,26 @@ function bindEvents() {
     closeDialog(elements.tokenDialog);
   });
 
+  elements.presetForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const id = elements.editingPresetId.value;
+    const presetInput = {
+      name: elements.presetName.value.trim() || 'トークン',
+      power: clampNumber(elements.presetPower.value, 0, 99),
+      toughness: clampNumber(elements.presetToughness.value, 0, 99),
+      color: elements.presetColor.value,
+      note: elements.presetNote.value.trim()
+    };
+
+    if (id) {
+      updateCustomPreset(id, presetInput);
+    } else {
+      addCustomPreset(presetInput);
+    }
+
+    closeDialog(elements.presetDialog);
+  });
+
   elements.deleteTokenButton.addEventListener('click', () => {
     const id = elements.editingTokenId.value;
     if (!id) return;
@@ -366,9 +506,18 @@ function bindEvents() {
     }
   });
 
+  elements.deletePresetButton.addEventListener('click', () => {
+    const id = elements.editingPresetId.value;
+    if (!id) return;
+    if (confirm('このプリセットを削除しますか？')) {
+      removeCustomPreset(id);
+      closeDialog(elements.presetDialog);
+    }
+  });
+
   elements.resetButton.addEventListener('click', () => {
     if (!confirm('盤面のトークンをすべて削除しますか？')) return;
-    state = createDefaultState();
+    state.tokens = [];
     persistAndRender();
   });
 
@@ -402,7 +551,6 @@ function registerServiceWorker() {
   }
 }
 
-renderPresets();
 bindEvents();
 render();
 registerServiceWorker();

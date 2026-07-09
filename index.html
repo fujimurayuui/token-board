@@ -10,7 +10,7 @@
   <title>Token Board</title>
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="apple-touch-icon" href="icons/icon-180.png" />
-  <link rel="stylesheet" href="style.css?v=3" />
+  <link rel="stylesheet" href="style.css?v=4" />
 </head>
 <body>
   <div class="app-shell">
@@ -31,7 +31,10 @@
       </section>
 
       <section class="preset-panel" aria-label="プリセット">
-        <h2>よく使うトークン</h2>
+        <div class="section-title-row preset-title-row">
+          <h2>よく使うトークン</h2>
+          <button id="addPresetButton" class="secondary-button compact-button" type="button">＋ プリセット作成</button>
+        </div>
         <div id="presetList" class="preset-list"></div>
       </section>
 
@@ -119,6 +122,60 @@
     </form>
   </dialog>
 
+
+  <dialog id="presetDialog" class="dialog">
+    <form id="presetForm" method="dialog">
+      <div class="dialog-header">
+        <h2 id="presetDialogTitle">プリセット作成</h2>
+        <button id="closePresetDialogButton" class="icon-button" type="button" aria-label="閉じる">×</button>
+      </div>
+
+      <input id="editingPresetId" type="hidden" />
+
+      <label>
+        名前
+        <input id="presetName" name="presetName" type="text" maxlength="24" placeholder="例：兵士" required />
+      </label>
+
+      <div class="form-grid three">
+        <label>
+          パワー
+          <input id="presetPower" name="presetPower" type="number" min="0" max="99" inputmode="numeric" value="1" />
+        </label>
+        <label>
+          タフネス
+          <input id="presetToughness" name="presetToughness" type="number" min="0" max="99" inputmode="numeric" value="1" />
+        </label>
+        <label>
+          色
+          <select id="presetColor" name="presetColor">
+            <option value="white">白</option>
+            <option value="blue">青</option>
+            <option value="black">黒</option>
+            <option value="red">赤</option>
+            <option value="green">緑</option>
+            <option value="colorless">無色</option>
+            <option value="artifact">アーティファクト</option>
+            <option value="gold">多色</option>
+          </select>
+        </label>
+      </div>
+
+      <label>
+        メモ
+        <input id="presetNote" name="presetNote" type="text" maxlength="40" placeholder="例：飛行、警戒、宝物など" />
+      </label>
+
+      <p class="form-hint">作成したプリセットは端末内に保存され、ワンタップでアンタップ状態のトークンを1体追加できます。</p>
+
+      <div class="dialog-actions">
+        <button id="deletePresetButton" class="danger-button hidden" type="button">削除</button>
+        <button class="secondary-button" type="button" id="cancelPresetDialogButton">キャンセル</button>
+        <button class="primary-button" type="submit">保存</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="helpDialog" class="dialog">
     <div class="dialog-header">
       <h2>iPhoneで使う方法</h2>
@@ -126,7 +183,7 @@
     </div>
     <div class="help-content">
       <p>Safariで開いたあと、共有ボタンから「ホーム画面に追加」を選ぶと、通常のアプリのように起動できます。</p>
-      <p>各トークンは「アンタップ」と「タップ」の2枠で表示されます。「1体タップ」「1体戻す」で、同じ種類のトークン内の状態を移動できます。</p>
+      <p>各トークンは「アンタップ」と「タップ」の2枠で表示されます。「1体タップ」「1体戻す」で、同じ種類のトークン内の状態を移動できます。よく使うトークンは「プリセット作成」から追加できます。</p>
       <ol>
         <li>このページをSafariで開く</li>
         <li>画面下の共有ボタンを押す</li>
@@ -197,6 +254,6 @@
     </article>
   </template>
 
-  <script src="app.js?v=3" defer></script>
+  <script src="app.js?v=4" defer></script>
 </body>
 </html>
